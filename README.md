@@ -19,7 +19,7 @@ A comprehensive invoice management system built with NestJS, featuring Razorpay 
 ## Tech Stack
 
 - **Backend**: NestJS, TypeScript
-- **Database**: MySQL with TypeORM
+- **Database**: Postgress with TypeORM
 - **Authentication**: JWT with Passport
 - **Payment**: Razorpay integration
 - **Documentation**: Swagger/OpenAPI
@@ -28,7 +28,7 @@ A comprehensive invoice management system built with NestJS, featuring Razorpay 
 ## Prerequisites
 
 - Node.js (v18 or higher)
-- MySQL database
+- Postgress database
 - Razorpay account (for payment processing)
 
 ## Installation
@@ -75,7 +75,7 @@ NODE_ENV=development
 PORT=3000
 ```
 
-5. Create MySQL database:
+5. Create Postgress database:
 
 ```sql
 CREATE DATABASE invoice_management;

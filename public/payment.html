@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment Page</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .payment-container {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .invoice-details {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+      }
+      .pay-button {
+        background: #007bff;
+        color: white;
+        padding: 15px 30px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        width: 100%;
+      }
+      .pay-button:hover {
+        background: #0056b3;
+      }
+      .error {
+        color: red;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="payment-container">
+      <h2>Payment for Invoice</h2>
+      <div class="invoice-details" id="invoiceDetails">
+        Loading invoice details...
+      </div>
+      <button class="pay-button" id="payButton" onclick="initiatePayment()">
+        Pay Now
+      </button>
+      <div id="error" class="error"></div>
+    </div>
+
+    <script>
+      const urlParams = new URLSearchParams(window.location.search);
+      const invoiceId =
+        urlParams.get('invoiceId') || window.location.pathname.split('/').pop();
+
+      let invoiceData = null;
+
+      async function loadInvoiceDetails() {
+        try {
+          const response = await fetch(
+            `/api/payments/payment-page/${invoiceId}`,
+          );
+          if (!response.ok) {
+            throw new Error('Invoice not found or payment link expired');
+          }
+          invoiceData = await response.json();
+          displayInvoiceDetails(invoiceData);
+        } catch (error) {
+          document.getElementById('error').textContent = error.message;
+          document.getElementById('payButton').disabled = true;
+        }
+      }
+
+      function displayInvoiceDetails(data) {
+        const detailsDiv = document.getElementById('invoiceDetails');
+        detailsDiv.innerHTML = `
+                <h3>Invoice Details</h3>
+                <p><strong>Invoice Number:</strong> ${data.invoice.invoiceNumber}</p>
+                <p><strong>Customer:</strong> ${data.invoice.customerName}</p>
+                <p><strong>Email:</strong> ${data.invoice.customerEmail}</p>
+                <p><strong>Amount:</strong> ₹${data.invoice.amount}</p>
+                <p><strong>Due Date:</strong> ${new Date(data.invoice.dueDate).toLocaleDateString()}</p>
+                ${data.invoice.description ? `<p><strong>Description:</strong> ${data.invoice.description}</p>` : ''}
+            `;
+      }
+
+      function initiatePayment() {
+        if (!invoiceData) {
+          document.getElementById('error').textContent =
+            'Invoice data not loaded';
+          return;
+        }
+
+        const options = {
+          key: invoiceData.razorpayKeyId,
+          amount: invoiceData.amount,
+          currency: invoiceData.currency,
+          name: 'Invoice Payment',
+          description: `Payment for Invoice ${invoiceData.invoice.invoiceNumber}`,
+          order_id: invoiceData.orderId,
+          prefill: {
+            name: invoiceData.customerName,
+            email: invoiceData.customerEmail,
+          },
+          handler: function (response) {
+            fetch('/api/payments/callback', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            })
+              .then((res) => res.json())
+              .then((data) => {
+                if (data.message === 'Payment successful') {
+                  alert('Payment successful! Thank you for your payment.');
+                } else {
+                  alert('Payment verification failed. Please contact support.');
+                }
+              })
+              .catch((error) => {
+                console.error('Error:', error);
+                alert('Payment verification failed. Please contact support.');
+              });
+          },
+          theme: {
+            color: '#007bff',
+          },
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.open();
+      }
+
+      loadInvoiceDetails();
+    </script>
+  </body>
+</html>
